@@ -27,7 +27,7 @@
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Global resets for Viewport Lock */
+/* Global resets */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -122,7 +122,7 @@ body {
 .quick-nav {
   display: flex;
   overflow-x: auto;
-  padding: 8px 16px 14px 16px;
+  padding: 8px 16px 12px 16px;
   gap: 8px;
   scrollbar-width: none;
 }
@@ -150,7 +150,22 @@ body {
   box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
 }
 
-/* Main Content Container (Fills rest of screen) */
+/* Selection dot indicators on navigation tabs */
+.tab-badge {
+  margin-left: 4px;
+  font-size: 0.7rem;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  padding: 1px 6px;
+  border-radius: 9999px;
+}
+
+.nav-item:not(.active) .tab-badge {
+  background-color: var(--danger);
+  color: #FFFFFF;
+}
+
+/* Main Content Container */
 .app-container {
   flex: 1;
   display: block;
@@ -162,17 +177,16 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
+  padding-bottom: 80px; /* Safe padding for bottom action bar */
 }
 
-/* Settings Controls Row */
+/* Settings Controls Row (Now Global in Header) */
 .card-controls {
-  padding: 12px 20px;
+  padding: 8px 20px 10px 20px;
   background-color: #FFFFFF;
   border-bottom: 1px solid var(--border);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  gap: 20px;
 }
 
 .toggle-label {
@@ -221,7 +235,7 @@ body {
   transform: translateX(16px);
 }
 
-/* Class Info/Subheader (e.g. Nursery - 3 Absent) */
+/* Class Info/Subheader */
 .class-info-bar {
   padding: 10px 20px;
   background-color: #F8FAFC;
@@ -264,10 +278,10 @@ body {
 .student-item {
   display: flex;
   align-items: center;
-  padding: 8px 20px; /* Reduced padding for compact layout */
+  padding: 8px 20px;
   border-bottom: 1px solid #F8FAFC;
   cursor: pointer;
-  min-height: 48px; /* Compact height */
+  min-height: 48px;
   transition: var(--transition);
 }
 
@@ -320,7 +334,7 @@ body {
 
 .student-info-col {
   display: flex;
-  align-items: center; /* Single line alignment */
+  align-items: center;
   flex-grow: 1;
 }
 
@@ -331,7 +345,7 @@ body {
   transition: var(--transition);
 }
 
-/* Hide the redundant present/absent text under names */
+/* Hide Present/Absent tags in list */
 .student-status-text {
   display: none !important;
 }
@@ -378,23 +392,26 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-/* Sticky Bottom Action Footer at the end of scrollable list */
-.card-actions {
-  padding: 16px 20px 24px 20px; /* Safe padding at bottom */
+/* Sticky Bottom Global Floating Action Bar */
+.floating-actions-bar {
+  position: sticky;
+  bottom: 0;
   background-color: #FFFFFF;
   border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 12px rgba(0,0,0,0.02);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.06);
+  padding: 12px 16px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  z-index: 100;
+  flex-shrink: 0;
 }
 
-.btn-copy {
+.btn-copy-all {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 100%;
+  gap: 6px;
   padding: 13px;
   font-family: var(--font-family);
   font-size: 0.95rem;
@@ -405,22 +422,21 @@ body {
   border-radius: 12px;
   cursor: pointer;
   transition: var(--transition);
-  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
 }
 
-.btn-copy:hover {
+.btn-copy-all:hover {
   background-color: var(--primary-hover);
 }
 
-.btn-copy:active {
+.btn-copy-all:active {
   transform: scale(0.98);
 }
 
-.btn-clear {
-  width: 100%;
-  padding: 11px;
+.btn-clear-all {
+  padding: 11px 18px;
   font-family: var(--font-family);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-muted);
   background-color: transparent;
@@ -430,19 +446,19 @@ body {
   transition: var(--transition);
 }
 
-.btn-clear:hover {
+.btn-clear-all:hover {
   background-color: #F8FAFC;
   color: var(--text-main);
 }
 
-.btn-clear:active {
+.btn-clear-all:active {
   background-color: #E2E8F0;
 }
 
 /* Global Toast Notification */
 .toast {
   position: fixed;
-  bottom: 30px;
+  bottom: 90px; /* Elevated to sit nicely above the floating actions bar */
   left: 50%;
   transform: translate(-50%, 50px);
   z-index: 1000;

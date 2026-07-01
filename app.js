@@ -1,6 +1,6 @@
-// Shree Jagdamba Daily Attendance Helper - Mobile App Logic
+// Shree Jagdamba Daily Attendance Helper - PWA Combined App Logic
 
-// 1. Hardcoded Class and Student Database (20 Indian Names per Class)
+// 1. Hardcoded Class and Student Database
 const CLASS_DATA = [
   {
     id: "nursery-lkg",
@@ -164,17 +164,16 @@ const CLASS_DATA = [
 ];
 
 // 2. Application State (In-Memory Only)
-const appState = {};
-let activeClassId = "nursery-lkg"; // Default active class tab
+const appState = {
+  includeGoodMorning: false, // Default is disabled
+  numbering: true,           // Default is enabled
+  activeClassId: "nursery-lkg"
+};
 
-// Initialize configurations for each class
+// Selections map to track absent students per class standard
+const classSelections = {};
 CLASS_DATA.forEach(cls => {
-  appState[cls.id] = {
-    absentStudents: new Set(),
-    includeGoodMorning: false,
-    numbering: true,
-    searchQuery: ""
-  };
+  classSelections[cls.id] = new Set();
 });
 
 // 3. Initialization on DOMContentLoaded
@@ -182,11 +181,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // Set date in header
   updateHeaderDate();
 
+  // Render navigation tabs
+  renderTabs();
+
   // Render the current active class standard view
   renderActiveSection();
 
-  // Hook navigation tab clicks
-  initTabs();
+  // Bind global control checkbox handlers and buttons
+  bindGlobalEvents();
 });
 
 // 4. Update Header Date
@@ -200,31 +202,62 @@ function updateHeaderDate() {
   dateElement.textContent = today.toLocaleDateString('en-US', options);
 }
 
-// 5. Render active class section viewport
+// 5. Render Navigation tabs (including selection count badges)
+function renderTabs() {
+  const navContainer = document.getElementById("class-tabs");
+  if (!navContainer) return;
+
+  navContainer.innerHTML = "";
+
+  CLASS_DATA.forEach(cls => {
+    const isActive = cls.id === appState.activeClassId;
+    const count = classSelections[cls.id].size;
+    
+    const a = document.createElement("a");
+    a.href = `#${cls.id}`;
+    a.className = `nav-item ${isActive ? 'active' : ''}`;
+    a.setAttribute("data-class", cls.id);
+    
+    // Append badge dynamically if selections exist
+    let tabText = cls.title;
+    if (count > 0) {
+      tabText += ` <span class="tab-badge">${count}</span>`;
+    }
+    a.innerHTML = tabText;
+
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (appState.activeClassId === cls.id) return;
+      
+      appState.activeClassId = cls.id;
+      
+      // Refresh tabs & active section
+      renderTabs();
+      renderActiveSection();
+      
+      // Auto scroll selected tab to center on mobile
+      const leftOffset = a.offsetLeft - navContainer.clientWidth / 2 + a.clientWidth / 2;
+      navContainer.scrollTo({
+        left: leftOffset,
+        behavior: 'smooth'
+      });
+    });
+
+    navContainer.appendChild(a);
+  });
+}
+
+// 6. Render active class section viewport
 function renderActiveSection() {
   const container = document.getElementById("sections-container");
   if (!container) return;
 
-  const cls = CLASS_DATA.find(c => c.id === activeClassId);
+  const cls = CLASS_DATA.find(c => c.id === appState.activeClassId);
   if (!cls) return;
 
-  const state = appState[activeClassId];
-
-  // Build interface for the active class inside the viewport container
+  // Build layout for selected class
   container.innerHTML = `
     <div class="class-view">
-      <!-- Options Toggles -->
-      <div class="card-controls">
-        <label class="toggle-label">
-          <input type="checkbox" class="toggle-input" id="gm-${cls.id}" ${state.includeGoodMorning ? 'checked' : ''}>
-          Good Morning
-        </label>
-        <label class="toggle-label">
-          <input type="checkbox" class="toggle-input" id="num-${cls.id}" ${state.numbering ? 'checked' : ''}>
-          Numbering
-        </label>
-      </div>
-
       <!-- Class info bar -->
       <div class="class-info-bar">
         <span class="class-info-title">${cls.title} Class</span>
@@ -235,15 +268,6 @@ function renderActiveSection() {
       <div class="student-list-container">
         <ul class="student-list" id="list-${cls.id}"></ul>
       </div>
-
-      <!-- Sticky Footer Actions -->
-      <div class="card-actions">
-        <button class="btn-copy" id="btn-copy-${cls.id}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          Copy WhatsApp Message
-        </button>
-        <button class="btn-clear" id="btn-clear-${cls.id}">Clear All Selection</button>
-      </div>
     </div>
   `;
 
@@ -252,19 +276,15 @@ function renderActiveSection() {
 
   // Update dynamic absent counts badge
   updateStatsBadge(cls.id);
-
-  // Bind input listeners
-  bindCardEvents(cls);
 }
 
-// 6. Render Student rows inside the list
+// 7. Render Student rows inside the list (including numbering index)
 function renderStudentList(cls) {
   const classId = cls.id;
   const listElement = document.getElementById(`list-${classId}`);
   if (!listElement) return;
 
-  const state = appState[classId];
-
+  const selections = classSelections[classId];
   listElement.innerHTML = "";
 
   if (cls.students.length === 0) {
@@ -273,7 +293,7 @@ function renderStudentList(cls) {
   }
 
   cls.students.forEach((studentName, index) => {
-    const isAbsent = state.absentStudents.has(studentName);
+    const isAbsent = selections.has(studentName);
     const li = document.createElement("li");
     li.className = `student-item ${isAbsent ? 'is-absent' : ''}`;
     
@@ -301,15 +321,15 @@ function renderStudentList(cls) {
   });
 }
 
-// 7. Toggle Student Selection State
+// 8. Toggle Student Selection State
 function toggleStudentSelection(cls, studentName) {
   const classId = cls.id;
-  const state = appState[classId];
+  const selections = classSelections[classId];
 
-  if (state.absentStudents.has(studentName)) {
-    state.absentStudents.delete(studentName);
+  if (selections.has(studentName)) {
+    selections.delete(studentName);
   } else {
-    state.absentStudents.add(studentName);
+    selections.add(studentName);
   }
 
   // Update badge stats
@@ -317,14 +337,17 @@ function toggleStudentSelection(cls, studentName) {
 
   // Re-render list
   renderStudentList(cls);
+
+  // Update tabs to refresh red badge counters
+  renderTabs();
 }
 
-// 8. Update dynamic absent count badge
+// 9. Update dynamic absent count badge
 function updateStatsBadge(classId) {
   const badge = document.getElementById(`badge-${classId}`);
   if (!badge) return;
 
-  const count = appState[classId].absentStudents.size;
+  const count = classSelections[classId].size;
   badge.textContent = `${count} Absent`;
 
   if (count > 0) {
@@ -334,105 +357,126 @@ function updateStatsBadge(classId) {
   }
 }
 
-// 9. Bind interaction events to the active class card
-function bindCardEvents(cls) {
-  const classId = cls.id;
-
+// 10. Bind global actions & options triggers
+function bindGlobalEvents() {
   // Good morning toggle
-  const gmToggle = document.getElementById(`gm-${classId}`);
-  gmToggle.addEventListener("change", (e) => {
-    appState[classId].includeGoodMorning = e.target.checked;
-  });
+  const gmToggle = document.getElementById("global-gm");
+  if (gmToggle) {
+    gmToggle.checked = appState.includeGoodMorning;
+    gmToggle.addEventListener("change", (e) => {
+      appState.includeGoodMorning = e.target.checked;
+    });
+  }
 
   // Numbering toggle
-  const numToggle = document.getElementById(`num-${classId}`);
-  numToggle.addEventListener("change", (e) => {
-    appState[classId].numbering = e.target.checked;
-  });
+  const numToggle = document.getElementById("global-num");
+  if (numToggle) {
+    numToggle.checked = appState.numbering;
+    numToggle.addEventListener("change", (e) => {
+      appState.numbering = e.target.checked;
+    });
+  }
 
-  // Copy WhatsApp Message Action
-  const copyBtn = document.getElementById(`btn-copy-${classId}`);
-  copyBtn.addEventListener("click", () => {
-    copyWhatsAppMessage(cls);
-  });
+  // Copy Action
+  const copyBtn = document.getElementById("global-btn-copy");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
+      copyCombinedWhatsAppMessage();
+    });
+  }
 
-  // Clear selections Action
-  const clearBtn = document.getElementById(`btn-clear-${classId}`);
-  clearBtn.addEventListener("click", () => {
-    clearAllSelection(cls);
-  });
+  // Clear Action
+  const clearBtn = document.getElementById("global-btn-clear");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      clearAllSelections();
+    });
+  }
 }
 
-// 10. Reset Selections for current active class standard
-function clearAllSelection(cls) {
-  const classId = cls.id;
-  
-  appState[classId].absentStudents.clear();
-  updateStatsBadge(classId);
-  renderStudentList(cls);
+// 11. Clear all selections across all tabs
+function clearAllSelections() {
+  for (const id in classSelections) {
+    classSelections[id].clear();
+  }
 
-  showToast(`Cleared selections for ${cls.title}`);
+  // Re-render views and update badges
+  renderTabs();
+  renderActiveSection();
+
+  showToast("Cleared all class selections!");
 }
 
-// 11. Format and copy WhatsApp Message (incorporating bold formatting and date)
-function copyWhatsAppMessage(cls) {
-  const classId = cls.id;
-  const state = appState[classId];
-  const classTitle = cls.title;
-
-  // Format today's date as DD/MM/YYYY dynamically
-  const today = new Date();
-  const day = String(today.getDate()).padStart(2, '0');
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const year = today.getFullYear();
-  const formattedDate = `${day}/${month}/${year}`;
+// 12. Compile and copy WhatsApp message containing all selected standard absentees
+function copyCombinedWhatsAppMessage() {
+  // Check if there are any selections across all standards
+  let hasAnySelections = false;
+  for (const id in classSelections) {
+    if (classSelections[id].size > 0) {
+      hasAnySelections = true;
+      break;
+    }
+  }
 
   // Build message
   let messageParts = [];
 
-  if (state.includeGoodMorning) {
+  if (appState.includeGoodMorning) {
     messageParts.push("Good morning Everyone 🙏\n");
   }
 
-  messageParts.push(`*${classTitle} class absent students list (${formattedDate}):*\n`);
-
-  if (state.absentStudents.size === 0) {
-    messageParts.push("No absent students.");
+  if (!hasAnySelections) {
+    messageParts.push("*Shree Jagdamba Convent School*\nAbsent students list:\n\nNo absent students.");
   } else {
-    // Keep absolute list order (as written in array) to avoid layout shift/jitter
-    const sortedAbsentees = cls.students.filter(student => 
-      state.absentStudents.has(student)
-    );
+    // Compile selection list class-by-class
+    CLASS_DATA.forEach(cls => {
+      const selections = classSelections[cls.id];
+      if (selections.size > 0) {
+        // Format current date dynamically
+        const today = new Date();
+        const day = String(today.getDate()).padStart(2, '0');
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const year = today.getFullYear();
+        const formattedDate = `${day}/${month}/${year}`;
 
-    if (state.numbering) {
-      const numberedList = sortedAbsentees.map((name, index) => 
-        `${index + 1}. ${name}`
-      ).join("\n");
-      messageParts.push(numberedList);
-    } else {
-      messageParts.push(sortedAbsentees.join("\n"));
-    }
+        messageParts.push(`*${cls.title} class absent students list (${formattedDate}):*`);
+
+        // Sort names in the original array order to keep layout stable
+        const sortedAbsentees = cls.students.filter(student => 
+          selections.has(student)
+        );
+
+        if (appState.numbering) {
+          const numberedList = sortedAbsentees.map((name, index) => 
+            `${index + 1}. ${name}`
+          ).join("\n");
+          messageParts.push(numberedList + "\n");
+        } else {
+          messageParts.push(sortedAbsentees.join("\n") + "\n");
+        }
+      }
+    });
   }
 
-  const finalMessage = messageParts.join("\n");
+  const finalMessage = messageParts.join("\n").trim();
 
   // Copy to clipboard
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(finalMessage)
       .then(() => {
-        showToast(`Copied ${classTitle} list!`);
+        showToast("Copied combined attendance list!");
       })
       .catch(err => {
         console.error("Clipboard copy failed, using fallback:", err);
-        fallbackCopyToClipboard(finalMessage, classTitle);
+        fallbackCopyToClipboard(finalMessage);
       });
   } else {
-    fallbackCopyToClipboard(finalMessage, classTitle);
+    fallbackCopyToClipboard(finalMessage);
   }
 }
 
-// Fallback clipboard copying for older mobile browsers
-function fallbackCopyToClipboard(text, classTitle) {
+// Fallback clipboard copy for older browsers
+function fallbackCopyToClipboard(text) {
   const textArea = document.createElement("textarea");
   textArea.value = text;
   
@@ -448,7 +492,7 @@ function fallbackCopyToClipboard(text, classTitle) {
   try {
     const successful = document.execCommand('copy');
     if (successful) {
-      showToast(`Copied ${classTitle} list!`);
+      showToast("Copied combined attendance list!");
     } else {
       showToast("Unable to copy. Please try again.");
     }
@@ -460,7 +504,7 @@ function fallbackCopyToClipboard(text, classTitle) {
   document.body.removeChild(textArea);
 }
 
-// 12. Display toast feedback
+// 13. Display toast feedback
 let toastTimeout;
 function showToast(message) {
   const toast = document.getElementById("toast");
@@ -477,35 +521,11 @@ function showToast(message) {
   }, 2200);
 }
 
-// 13. Horizontal navigation tab swiper logic
-function initTabs() {
-  const navItems = document.querySelectorAll(".nav-item");
-  const navContainer = document.querySelector(".quick-nav");
-
-  navItems.forEach(item => {
-    item.addEventListener("click", (e) => {
-      e.preventDefault();
-      
-      const targetClass = item.getAttribute("data-class");
-      if (activeClassId === targetClass) return;
-
-      activeClassId = targetClass;
-
-      // Update active styling
-      navItems.forEach(n => n.classList.remove("active"));
-      item.classList.add("active");
-
-      // Scroll selected tab to center of slider on mobile
-      if (navContainer) {
-        const leftOffset = item.offsetLeft - navContainer.clientWidth / 2 + item.clientWidth / 2;
-        navContainer.scrollTo({
-          left: leftOffset,
-          behavior: 'smooth'
-        });
-      }
-
-      // Re-render class standard section
-      renderActiveSection();
-    });
+// 14. Service Worker Registration for PWA Offline Functionality
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('PWA Service Worker registered scope:', reg.scope))
+      .catch(err => console.error('PWA Service Worker registration failed:', err));
   });
 }

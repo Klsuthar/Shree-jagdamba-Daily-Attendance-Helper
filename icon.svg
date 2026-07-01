@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Rounded Rect App Icon Background with Premium Gradient -->
+  <defs>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <filter id="dropShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  
+  <rect width="512" height="512" rx="112" fill="url(#blueGrad)"/>
+  
+  <!-- Stylized School Book / Checklist Base -->
+  <g filter="url(#dropShadow)">
+    <!-- Book/Board Sheet -->
+    <rect x="146" y="126" width="220" height="280" rx="20" fill="#FFFFFF"/>
+    
+    <!-- Clipboard Top Clip -->
+    <rect x="206" y="96" width="100" height="40" rx="8" fill="#1E293B"/>
+    <circle cx="256" cy="116" r="6" fill="#94A3B8"/>
+    
+    <!-- Checklist Horizontal Lines representing Present students -->
+    <line x1="216" y1="206" x2="316" y2="206" stroke="#E2E8F0" stroke-width="8" stroke-linecap="round"/>
+    <line x1="216" y1="266" x2="316" y2="266" stroke="#E2E8F0" stroke-width="8" stroke-linecap="round"/>
+    <line x1="216" y1="326" x2="316" y2="326" stroke="#E2E8F0" stroke-width="8" stroke-linecap="round"/>
+    
+    <!-- Checklist small bullet points -->
+    <circle cx="186" cy="206" r="8" fill="#CBD5E1"/>
+    <circle cx="186" cy="266" r="8" fill="#CBD5E1"/>
+    
+    <!-- Large Red Warning Checkmark representing an Absent student check -->
+    <path d="M166 326 l12 12 l24 -28" stroke="#EF4444" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

@@ -1,0 +1,19 @@
+{
+  "name": "Shree Jagdamba Attendance Helper",
+  "short_name": "Attendance Helper",
+  "description": "WhatsApp Absent List Generator for Shree Jagdamba Convent School",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2563EB",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
