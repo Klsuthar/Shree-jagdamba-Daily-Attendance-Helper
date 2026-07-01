@@ -171,9 +171,13 @@ const appState = {
 };
 
 // Selections map to track absent students per class standard
+// Selections map to track absent students per class standard
 const classSelections = {};
 CLASS_DATA.forEach(cls => {
-  classSelections[cls.id] = new Set();
+  classSelections[cls.id] = {
+    absentStudents: new Set(),
+    noAbsenteesChecked: false
+  };
 });
 
 // 3. Initialization on DOMContentLoaded
@@ -211,7 +215,9 @@ function renderTabs() {
 
   CLASS_DATA.forEach(cls => {
     const isActive = cls.id === appState.activeClassId;
-    const count = classSelections[cls.id].size;
+    const selections = classSelections[cls.id];
+    const count = selections.absentStudents.size;
+    const isNoAbsent = selections.noAbsenteesChecked;
     
     const a = document.createElement("a");
     a.href = `#${cls.id}`;
@@ -222,6 +228,8 @@ function renderTabs() {
     let tabText = cls.title;
     if (count > 0) {
       tabText += ` <span class="tab-badge">${count}</span>`;
+    } else if (isNoAbsent) {
+      tabText += ` <span class="tab-badge" style="background-color: var(--success)">✓</span>`;
     }
     a.innerHTML = tabText;
 
@@ -292,8 +300,34 @@ function renderStudentList(cls) {
     return;
   }
 
+  // Render the special "No student absent" row at the top
+  const isNoAbsent = selections.noAbsenteesChecked;
+  const noAbsentLi = document.createElement("li");
+  noAbsentLi.className = `student-item no-absent-row ${isNoAbsent ? 'is-no-absent' : ''}`;
+  
+  noAbsentLi.innerHTML = `
+    <div class="student-checkbox-col">
+      <input type="checkbox" class="student-checkbox" aria-label="Mark all present" ${isNoAbsent ? 'checked' : ''}>
+    </div>
+    <div class="student-info-col">
+      <span class="student-name">No student absent</span>
+    </div>
+  `;
+
+  noAbsentLi.querySelector('.student-checkbox').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleNoAbsentSelection(cls);
+  });
+
+  noAbsentLi.addEventListener("click", () => {
+    toggleNoAbsentSelection(cls);
+  });
+
+  listElement.appendChild(noAbsentLi);
+
+  // Render normal student rows
   cls.students.forEach((studentName, index) => {
-    const isAbsent = selections.has(studentName);
+    const isAbsent = selections.absentStudents.has(studentName);
     const li = document.createElement("li");
     li.className = `student-item ${isAbsent ? 'is-absent' : ''}`;
     
@@ -321,15 +355,16 @@ function renderStudentList(cls) {
   });
 }
 
-// 8. Toggle Student Selection State
-function toggleStudentSelection(cls, studentName) {
+// 8. Toggle "No student absent" Option
+function toggleNoAbsentSelection(cls) {
   const classId = cls.id;
   const selections = classSelections[classId];
 
-  if (selections.has(studentName)) {
-    selections.delete(studentName);
-  } else {
-    selections.add(studentName);
+  selections.noAbsenteesChecked = !selections.noAbsenteesChecked;
+
+  if (selections.noAbsenteesChecked) {
+    // Clear all specific absent student selections for this class
+    selections.absentStudents.clear();
   }
 
   // Update badge stats
@@ -338,26 +373,60 @@ function toggleStudentSelection(cls, studentName) {
   // Re-render list
   renderStudentList(cls);
 
-  // Update tabs to refresh red badge counters
+  // Update tabs to refresh counters
   renderTabs();
 }
 
-// 9. Update dynamic absent count badge
+// 9. Toggle Student Selection State
+function toggleStudentSelection(cls, studentName) {
+  const classId = cls.id;
+  const selections = classSelections[classId];
+
+  if (selections.absentStudents.has(studentName)) {
+    selections.absentStudents.delete(studentName);
+  } else {
+    selections.absentStudents.add(studentName);
+    // Uncheck "No student absent" if a student is marked absent
+    selections.noAbsenteesChecked = false;
+  }
+
+  // Update badge stats
+  updateStatsBadge(classId);
+
+  // Re-render list
+  renderStudentList(cls);
+
+  // Update tabs to refresh counters
+  renderTabs();
+}
+
+// 10. Update dynamic absent count badge
 function updateStatsBadge(classId) {
   const badge = document.getElementById(`badge-${classId}`);
   if (!badge) return;
 
-  const count = classSelections[classId].size;
-  badge.textContent = `${count} Absent`;
+  const selections = classSelections[classId];
+  const count = selections.absentStudents.size;
+  const isNoAbsent = selections.noAbsenteesChecked;
 
-  if (count > 0) {
+  if (isNoAbsent) {
+    badge.textContent = "All Present";
     badge.classList.add("active-absent");
+    badge.style.backgroundColor = "var(--success-light)";
+    badge.style.color = "var(--success)";
   } else {
-    badge.classList.remove("active-absent");
+    badge.textContent = `${count} Absent`;
+    badge.style.backgroundColor = "";
+    badge.style.color = "";
+    if (count > 0) {
+      badge.classList.add("active-absent");
+    } else {
+      badge.classList.remove("active-absent");
+    }
   }
 }
 
-// 10. Bind global actions & options triggers
+// 11. Bind global actions & options triggers
 function bindGlobalEvents() {
   // Good morning toggle
   const gmToggle = document.getElementById("global-gm");
@@ -394,10 +463,11 @@ function bindGlobalEvents() {
   }
 }
 
-// 11. Clear all selections across all tabs
+// 12. Clear all selections across all tabs
 function clearAllSelections() {
   for (const id in classSelections) {
-    classSelections[id].clear();
+    classSelections[id].absentStudents.clear();
+    classSelections[id].noAbsenteesChecked = false;
   }
 
   // Re-render views and update badges
@@ -407,12 +477,13 @@ function clearAllSelections() {
   showToast("Cleared all class selections!");
 }
 
-// 12. Compile and copy WhatsApp message containing all selected standard absentees
+// 13. Compile and copy WhatsApp message containing all selected standard absentees
 function copyCombinedWhatsAppMessage() {
-  // Check if there are any selections across all standards
+  // Check if there are any selections or no-absent declarations across all standards
   let hasAnySelections = false;
   for (const id in classSelections) {
-    if (classSelections[id].size > 0) {
+    const selections = classSelections[id];
+    if (selections.absentStudents.size > 0 || selections.noAbsenteesChecked) {
       hasAnySelections = true;
       break;
     }
@@ -431,28 +502,28 @@ function copyCombinedWhatsAppMessage() {
     // Compile selection list class-by-class
     CLASS_DATA.forEach(cls => {
       const selections = classSelections[cls.id];
-      if (selections.size > 0) {
-        // Format current date dynamically
-        const today = new Date();
-        const day = String(today.getDate()).padStart(2, '0');
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const year = today.getFullYear();
-        const formattedDate = `${day}/${month}/${year}`;
+      const hasAbsentees = selections.absentStudents.size > 0;
+      const isNoAbsent = selections.noAbsenteesChecked;
 
-        messageParts.push(`*${cls.title} class absent students list (${formattedDate}):*`);
+      if (hasAbsentees || isNoAbsent) {
+        messageParts.push(`*${cls.title} class absent students list:*`);
 
-        // Sort names in the original array order to keep layout stable
-        const sortedAbsentees = cls.students.filter(student => 
-          selections.has(student)
-        );
-
-        if (appState.numbering) {
-          const numberedList = sortedAbsentees.map((name, index) => 
-            `${index + 1}. ${name}`
-          ).join("\n");
-          messageParts.push(numberedList + "\n");
+        if (isNoAbsent) {
+          messageParts.push("No absent students.\n");
         } else {
-          messageParts.push(sortedAbsentees.join("\n") + "\n");
+          // Sort names in the original array order to keep layout stable
+          const sortedAbsentees = cls.students.filter(student => 
+            selections.absentStudents.has(student)
+          );
+
+          if (appState.numbering) {
+            const numberedList = sortedAbsentees.map((name, index) => 
+              `${index + 1}. ${name}`
+            ).join("\n");
+            messageParts.push(numberedList + "\n");
+          } else {
+            messageParts.push(sortedAbsentees.join("\n") + "\n");
+          }
         }
       }
     });

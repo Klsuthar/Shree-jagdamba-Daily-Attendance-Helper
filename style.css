@@ -360,6 +360,20 @@ body {
   font-weight: 600;
 }
 
+.student-item.is-no-absent {
+  background-color: #ECFDF5;
+}
+
+.student-item.is-no-absent .student-name {
+  color: #065F46;
+  font-weight: 600;
+}
+
+.student-item.is-no-absent .student-checkbox:checked {
+  background-color: var(--success);
+  border-color: var(--success);
+}
+
 .empty-list-message {
   padding: 40px 20px;
   text-align: center;
