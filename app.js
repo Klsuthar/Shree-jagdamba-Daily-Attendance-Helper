@@ -1,6 +1,6 @@
-// Shree Jagdamba Daily Attendance Helper - App Logic
+// Shree Jagdamba Daily Attendance Helper - Mobile App Logic
 
-// 1. Hardcoded Class and Student Database
+// 1. Hardcoded Class and Student Database (20 Indian Names per Class)
 const CLASS_DATA = [
   {
     id: "nursery-lkg",
@@ -56,8 +56,9 @@ const CLASS_DATA = [
 
 // 2. Application State (In-Memory Only)
 const appState = {};
+let activeClassId = "nursery-lkg"; // Default active class tab
 
-// Initialize state for each class
+// Initialize configurations for each class
 CLASS_DATA.forEach(cls => {
   appState[cls.id] = {
     absentStudents: new Set(),
@@ -69,17 +70,14 @@ CLASS_DATA.forEach(cls => {
 
 // 3. Initialization on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", () => {
-  // Set dynamic date in header
+  // Set date in header
   updateHeaderDate();
 
-  // Render the class sections
-  renderSections();
+  // Render the current active class standard view
+  renderActiveSection();
 
-  // Initialize Scroll-to-Top
-  initScrollToTop();
-
-  // Initialize IntersectionObserver for active navigation highlighting
-  initNavigationObserver();
+  // Hook navigation tab clicks
+  initTabs();
 });
 
 // 4. Update Header Date
@@ -90,77 +88,75 @@ function updateHeaderDate() {
   const options = { weekday: 'long', month: 'short', day: 'numeric' };
   const today = new Date();
   
-  // Format current date, e.g., "Wednesday, Jul 1"
   dateElement.textContent = today.toLocaleDateString('en-US', options);
 }
 
-// 5. Render Sections & Hook Events
-function renderSections() {
+// 5. Render active class section viewport
+function renderActiveSection() {
   const container = document.getElementById("sections-container");
   if (!container) return;
 
-  container.innerHTML = ""; // Clear loader
+  const cls = CLASS_DATA.find(c => c.id === activeClassId);
+  if (!cls) return;
 
-  CLASS_DATA.forEach(cls => {
-    const classId = cls.id;
-    const classTitle = cls.title;
-    
-    // Create card element
-    const card = document.createElement("section");
-    card.className = "class-card";
-    card.id = classId;
+  const state = appState[activeClassId];
+  const queryIsEmpty = state.searchQuery.length === 0;
 
-    // Build the inside HTML
-    card.innerHTML = `
-      <div class="card-header">
-        <div class="card-title-area">
-          <div class="class-badge">${classTitle.charAt(0)}</div>
-          <h2 class="class-title">${classTitle}</h2>
-        </div>
-        <span class="status-badge" id="badge-${classId}">0 Absent</span>
-      </div>
-
+  // Build interface for the active class inside the viewport container
+  container.innerHTML = `
+    <div class="class-view">
+      <!-- Options Toggles -->
       <div class="card-controls">
         <label class="toggle-label">
-          <input type="checkbox" class="toggle-input" id="gm-${classId}" checked>
-          Include "Good morning"
+          <input type="checkbox" class="toggle-input" id="gm-${cls.id}" ${state.includeGoodMorning ? 'checked' : ''}>
+          Good Morning
         </label>
         <label class="toggle-label">
-          <input type="checkbox" class="toggle-input" id="num-${classId}" checked>
+          <input type="checkbox" class="toggle-input" id="num-${cls.id}" ${state.numbering ? 'checked' : ''}>
           Numbering
         </label>
       </div>
 
+      <!-- Search Box -->
       <div class="search-wrapper">
         <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" id="search-${classId}" placeholder="Search student name...">
-        <button class="clear-search-btn" id="search-clear-${classId}" aria-label="Clear search">✕</button>
+        <input type="text" class="search-input" id="search-${cls.id}" value="${state.searchQuery}" placeholder="Search student name...">
+        <button class="clear-search-btn" id="search-clear-${cls.id}" style="display: ${queryIsEmpty ? 'none' : 'flex'}" aria-label="Clear search">✕</button>
       </div>
 
+      <!-- Class info bar -->
+      <div class="class-info-bar">
+        <span class="class-info-title">${cls.title} Class</span>
+        <span class="status-badge" id="badge-${cls.id}">0 Absent</span>
+      </div>
+
+      <!-- Scrollable list -->
       <div class="student-list-container">
-        <ul class="student-list" id="list-${classId}"></ul>
+        <ul class="student-list" id="list-${cls.id}"></ul>
       </div>
 
+      <!-- Sticky Footer Actions -->
       <div class="card-actions">
-        <button class="btn-copy" id="btn-copy-${classId}">
+        <button class="btn-copy" id="btn-copy-${cls.id}">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
           Copy WhatsApp Message
         </button>
-        <button class="btn-clear" id="btn-clear-${classId}">Clear All Selection</button>
+        <button class="btn-clear" id="btn-clear-${cls.id}">Clear All Selection</button>
       </div>
-    `;
+    </div>
+  `;
 
-    container.appendChild(card);
+  // Render the student list rows
+  renderStudentList(cls);
 
-    // Initial render of the students inside this card
-    renderStudentList(cls);
+  // Update dynamic absent counts badge
+  updateStatsBadge(cls.id);
 
-    // Bind event listeners for this section
-    bindCardEvents(cls);
-  });
+  // Bind input listeners
+  bindCardEvents(cls);
 }
 
-// 6. Render Student List for a Class
+// 6. Render Student rows inside the list
 function renderStudentList(cls) {
   const classId = cls.id;
   const listElement = document.getElementById(`list-${classId}`);
@@ -169,12 +165,11 @@ function renderStudentList(cls) {
   const state = appState[classId];
   const query = state.searchQuery.toLowerCase().trim();
 
-  // Filter students based on query
+  // Filter students dynamically based on search box input
   const filteredStudents = cls.students.filter(student => 
     student.toLowerCase().includes(query)
   );
 
-  // Clear list
   listElement.innerHTML = "";
 
   if (filteredStudents.length === 0) {
@@ -182,13 +177,11 @@ function renderStudentList(cls) {
     return;
   }
 
-  // Populate list
   filteredStudents.forEach(studentName => {
     const isAbsent = state.absentStudents.has(studentName);
     const li = document.createElement("li");
     li.className = `student-item ${isAbsent ? 'is-absent' : ''}`;
     
-    // Set direct internal state toggler
     li.innerHTML = `
       <div class="student-checkbox-col">
         <input type="checkbox" class="student-checkbox" aria-label="Mark ${studentName} absent" ${isAbsent ? 'checked' : ''}>
@@ -199,12 +192,13 @@ function renderStudentList(cls) {
       </div>
     `;
 
-    // Prevent default checkbox toggle behavior to handle click on entire row smoothly
+    // Handle checkboxes directly (prevent bubbling trigger)
     li.querySelector('.student-checkbox').addEventListener('click', (e) => {
       e.stopPropagation();
       toggleStudentSelection(cls, studentName);
     });
 
+    // Tap anywhere on the row to check/uncheck
     li.addEventListener("click", () => {
       toggleStudentSelection(cls, studentName);
     });
@@ -224,14 +218,14 @@ function toggleStudentSelection(cls, studentName) {
     state.absentStudents.add(studentName);
   }
 
-  // Update Section Header Stats badge
+  // Update badge stats
   updateStatsBadge(classId);
 
-  // Re-render only the student list to reflect visual active states without resetting focus
+  // Re-render list
   renderStudentList(cls);
 }
 
-// 8. Update stats badge in card header
+// 8. Update dynamic absent count badge
 function updateStatsBadge(classId) {
   const badge = document.getElementById(`badge-${classId}`);
   if (!badge) return;
@@ -246,7 +240,7 @@ function updateStatsBadge(classId) {
   }
 }
 
-// 9. Bind all interaction event listeners to a Card
+// 9. Bind interaction events to the active class card
 function bindCardEvents(cls) {
   const classId = cls.id;
 
@@ -262,7 +256,7 @@ function bindCardEvents(cls) {
     appState[classId].numbering = e.target.checked;
   });
 
-  // Search input interaction
+  // Search input actions
   const searchInput = document.getElementById(`search-${classId}`);
   const clearSearchBtn = document.getElementById(`search-clear-${classId}`);
 
@@ -270,7 +264,6 @@ function bindCardEvents(cls) {
     const query = e.target.value;
     appState[classId].searchQuery = query;
 
-    // Show/hide clear search button
     if (query.length > 0) {
       clearSearchBtn.style.display = "flex";
     } else {
@@ -294,35 +287,36 @@ function bindCardEvents(cls) {
     copyWhatsAppMessage(cls);
   });
 
-  // Clear Selection Action
+  // Clear selections Action
   const clearBtn = document.getElementById(`btn-clear-${classId}`);
   clearBtn.addEventListener("click", () => {
     clearAllSelection(cls);
   });
 }
 
-// 10. Clear Selections for a Section
+// 10. Reset Selections for current active class standard
 function clearAllSelection(cls) {
   const classId = cls.id;
   
-  // Clear Set
   appState[classId].absentStudents.clear();
-
-  // Reset stats badge
   updateStatsBadge(classId);
-
-  // Re-render list
   renderStudentList(cls);
 
-  // Show Toast confirmation
   showToast(`Cleared selections for ${cls.title}`);
 }
 
-// 11. Format and copy WhatsApp Message
+// 11. Format and copy WhatsApp Message (incorporating bold formatting and date)
 function copyWhatsAppMessage(cls) {
   const classId = cls.id;
   const state = appState[classId];
   const classTitle = cls.title;
+
+  // Format today's date as DD/MM/YYYY dynamically
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const year = today.getFullYear();
+  const formattedDate = `${day}/${month}/${year}`;
 
   // Build message
   let messageParts = [];
@@ -331,12 +325,12 @@ function copyWhatsAppMessage(cls) {
     messageParts.push("Good morning Everyone 🙏\n");
   }
 
-  messageParts.push(`${classTitle} class absent students list:\n`);
+  messageParts.push(`*${classTitle} class absent students list (${formattedDate}):*\n`);
 
   if (state.absentStudents.size === 0) {
     messageParts.push("No absent students.");
   } else {
-    // Keep absolute ordering of dummy list (as written in Javascript array) to avoid index jitter
+    // Keep absolute list order (as written in array) to avoid layout shift/jitter
     const sortedAbsentees = cls.students.filter(student => 
       state.absentStudents.has(student)
     );
@@ -368,12 +362,11 @@ function copyWhatsAppMessage(cls) {
   }
 }
 
-// Fallback clipboard copying for non-HTTPS or older mobile browsers
+// Fallback clipboard copying for older mobile browsers
 function fallbackCopyToClipboard(text, classTitle) {
   const textArea = document.createElement("textarea");
   textArea.value = text;
   
-  // Prevent scrolling to bottom of screen
   textArea.style.top = "0";
   textArea.style.left = "0";
   textArea.style.position = "fixed";
@@ -398,7 +391,7 @@ function fallbackCopyToClipboard(text, classTitle) {
   document.body.removeChild(textArea);
 }
 
-// 12. Display Toast Message
+// 12. Display toast feedback
 let toastTimeout;
 function showToast(message) {
   const toast = document.getElementById("toast");
@@ -407,98 +400,43 @@ function showToast(message) {
 
   toastMsg.textContent = message;
   
-  // Clear any existing timeout
   clearTimeout(toastTimeout);
-
-  // Show Toast
   toast.classList.add("show");
 
-  // Auto Hide Toast
   toastTimeout = setTimeout(() => {
     toast.classList.remove("show");
   }, 2200);
 }
 
-// 13. Back to Top Button Logic
-function initScrollToTop() {
-  const scrollBtn = document.getElementById("scroll-btn");
-  if (!scrollBtn) return;
-
-  window.addEventListener("scroll", () => {
-    if (window.scrollY > 300) {
-      scrollBtn.classList.add("visible");
-    } else {
-      scrollBtn.classList.remove("visible");
-    }
-  });
-
-  scrollBtn.addEventListener("click", () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    });
-  });
-}
-
-// 14. Active Navigation Indicator Hooked to Scroll Position
-function initNavigationObserver() {
+// 13. Horizontal navigation tab swiper logic
+function initTabs() {
   const navItems = document.querySelectorAll(".nav-item");
-  const sections = document.querySelectorAll(".class-card");
-  
-  if (!navItems.length || !sections.length) return;
+  const navContainer = document.querySelector(".quick-nav");
 
-  // Track page scroll to set active nav tab
-  const observerOptions = {
-    root: null,
-    rootMargin: "-20% 0px -60% 0px", // Adjust boundaries to match mobile viewport center
-    threshold: 0
-  };
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const id = entry.target.getAttribute("id");
-        
-        // Remove active class from all nav links
-        navItems.forEach(nav => nav.classList.remove("active"));
-        
-        // Add active to matching tab
-        const activeNav = document.querySelector(`.nav-item[href="#${id}"]`);
-        if (activeNav) {
-          activeNav.classList.add("active");
-          
-          // Scroll the tab container horizontally if nav item is out of view
-          const navContainer = document.querySelector(".quick-nav");
-          if (navContainer) {
-            const leftOffset = activeNav.offsetLeft - navContainer.clientWidth / 2 + activeNav.clientWidth / 2;
-            navContainer.scrollTo({
-              left: leftOffset,
-              behavior: 'smooth'
-            });
-          }
-        }
-      }
-    });
-  }, observerOptions);
-
-  sections.forEach(section => observer.observe(section));
-
-  // Add click scrolling override
-  navItems.forEach(nav => {
-    nav.addEventListener("click", (e) => {
+  navItems.forEach(item => {
+    item.addEventListener("click", (e) => {
       e.preventDefault();
-      const targetId = nav.getAttribute("href");
-      const targetSection = document.querySelector(targetId);
       
-      if (targetSection) {
-        // Remove active state and temporarily block scroll observer trigger
-        navItems.forEach(n => n.classList.remove("active"));
-        nav.classList.add("active");
+      const targetClass = item.getAttribute("data-class");
+      if (activeClassId === targetClass) return;
 
-        targetSection.scrollIntoView({
-          behavior: "smooth"
+      activeClassId = targetClass;
+
+      // Update active styling
+      navItems.forEach(n => n.classList.remove("active"));
+      item.classList.add("active");
+
+      // Scroll selected tab to center of slider on mobile
+      if (navContainer) {
+        const leftOffset = item.offsetLeft - navContainer.clientWidth / 2 + item.clientWidth / 2;
+        navContainer.scrollTo({
+          left: leftOffset,
+          behavior: 'smooth'
         });
       }
+
+      // Re-render class standard section
+      renderActiveSection();
     });
   });
 }
