@@ -39,7 +39,7 @@ body {
   font-family: var(--font-family);
   background-color: #0F172A; /* Slate 900 background on desktop to showcase the phone app */
   color: var(--text-main);
-  height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   display: flex;
@@ -57,7 +57,7 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto; /* The phone container itself scrolls */
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
@@ -71,10 +71,12 @@ body {
 
 /* Sticky App Header */
 .app-header {
+  position: sticky;
+  top: 0;
   background-color: #FFFFFF;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  z-index: 10;
+  z-index: 100; /* Stays above the scrolling list */
 }
 
 .header-container {
@@ -151,18 +153,15 @@ body {
 /* Main Content Container (Fills rest of screen) */
 .app-container {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  display: block;
   position: relative;
 }
 
-/* Class Section View (Fills container) */
+/* Class Section View */
 .class-view {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  width: 100%;
 }
 
 /* Settings Controls Row */
@@ -174,7 +173,6 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  flex-shrink: 0;
 }
 
 .toggle-label {
@@ -223,68 +221,14 @@ body {
   transform: translateX(16px);
 }
 
-/* Search Bar Wrapper */
-.search-wrapper {
-  padding: 12px 20px;
-  position: relative;
-  background-color: #FFFFFF;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.search-input {
-  width: 100%;
-  padding: 10px 16px 10px 38px;
-  font-family: var(--font-family);
-  font-size: 0.85rem;
-  font-weight: 500;
-  border: 1.5px solid #E2E8F0;
-  border-radius: 12px;
-  outline: none;
-  background-color: #F8FAFC;
-  color: var(--text-main);
-  transition: var(--transition);
-}
-
-.search-input:focus {
-  border-color: var(--primary);
-  background-color: #FFFFFF;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.search-icon {
-  position: absolute;
-  left: 32px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.9rem;
-  color: var(--text-light);
-  pointer-events: none;
-}
-
-.clear-search-btn {
-  position: absolute;
-  right: 32px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--text-light);
-  cursor: pointer;
-  display: none;
-  padding: 4px;
-  font-size: 0.8rem;
-}
-
 /* Class Info/Subheader (e.g. Nursery - 3 Absent) */
 .class-info-bar {
-  padding: 8px 20px;
+  padding: 10px 20px;
   background-color: #F8FAFC;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
 }
 
 .class-info-title {
@@ -308,12 +252,9 @@ body {
   color: var(--danger);
 }
 
-/* Scrollable Student List Container */
+/* Student List Container */
 .student-list-container {
-  flex: 1;
-  overflow-y: auto;
   background-color: #FFFFFF;
-  -webkit-overflow-scrolling: touch; /* Momentum scrolling iOS */
 }
 
 .student-list {
@@ -323,10 +264,10 @@ body {
 .student-item {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
+  padding: 8px 20px; /* Reduced padding for compact layout */
   border-bottom: 1px solid #F8FAFC;
   cursor: pointer;
-  min-height: 56px;
+  min-height: 48px; /* Compact height */
   transition: var(--transition);
 }
 
@@ -348,9 +289,9 @@ body {
 .student-checkbox {
   appearance: none;
   -webkit-appearance: none;
-  width: 24px;
-  height: 24px;
-  border: 2px solid #CBD5E1;
+  width: 22px;
+  height: 22px;
+  border: 2.2px solid #CBD5E1;
   border-radius: 6px;
   outline: none;
   cursor: pointer;
@@ -368,10 +309,10 @@ body {
 .student-checkbox:checked::before {
   content: "";
   position: absolute;
-  left: 7.5px;
-  top: 3.5px;
+  left: 6.5px;
+  top: 2.5px;
   width: 5px;
-  height: 10px;
+  height: 9px;
   border: solid white;
   border-width: 0 2.5px 2.5px 0;
   transform: rotate(45deg);
@@ -379,7 +320,7 @@ body {
 
 .student-info-col {
   display: flex;
-  flex-direction: column;
+  align-items: center; /* Single line alignment */
   flex-grow: 1;
 }
 
@@ -390,13 +331,9 @@ body {
   transition: var(--transition);
 }
 
+/* Hide the redundant present/absent text under names */
 .student-status-text {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--success);
-  margin-top: 1px;
-  letter-spacing: 0.02em;
+  display: none !important;
 }
 
 /* Selection Highlight States */
@@ -407,10 +344,6 @@ body {
 .student-item.is-absent .student-name {
   color: #991B1B;
   font-weight: 600;
-}
-
-.student-item.is-absent .student-status-text {
-  color: var(--danger);
 }
 
 .empty-list-message {
@@ -426,7 +359,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  padding: 60px 20px;
   color: var(--text-muted);
 }
 
@@ -445,16 +378,15 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-/* Sticky Bottom Action Footer */
+/* Sticky Bottom Action Footer at the end of scrollable list */
 .card-actions {
-  padding: 12px 16px;
+  padding: 16px 20px 24px 20px; /* Safe padding at bottom */
   background-color: #FFFFFF;
   border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 12px rgba(0,0,0,0.03);
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.02);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex-shrink: 0;
 }
 
 .btn-copy {
@@ -463,9 +395,9 @@ body {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 12px;
+  padding: 13px;
   font-family: var(--font-family);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: #FFFFFF;
   background-color: var(--primary);
@@ -486,9 +418,9 @@ body {
 
 .btn-clear {
   width: 100%;
-  padding: 10px;
+  padding: 11px;
   font-family: var(--font-family);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-muted);
   background-color: transparent;
@@ -509,8 +441,8 @@ body {
 
 /* Global Toast Notification */
 .toast {
-  position: absolute;
-  bottom: 120px;
+  position: fixed;
+  bottom: 30px;
   left: 50%;
   transform: translate(-50%, 50px);
   z-index: 1000;
@@ -547,23 +479,4 @@ body {
 .toast-message {
   font-size: 0.8rem;
   font-weight: 500;
-}
-
-/* Custom Scrollbar */
-.student-list-container::-webkit-scrollbar {
-  width: 5px;
-}
-
-.student-list-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.student-list-container::-webkit-scrollbar-thumb {
-  background-color: #CBD5E1;
-  border-radius: 9999px;
-}
-
-/* Hide unused HTML elements styled out in mobile-only redesign */
-.scroll-to-top {
-  display: none !important;
 }

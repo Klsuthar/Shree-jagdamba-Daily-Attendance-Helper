@@ -171,7 +171,7 @@ let activeClassId = "nursery-lkg"; // Default active class tab
 CLASS_DATA.forEach(cls => {
   appState[cls.id] = {
     absentStudents: new Set(),
-    includeGoodMorning: true,
+    includeGoodMorning: false,
     numbering: true,
     searchQuery: ""
   };
@@ -209,7 +209,6 @@ function renderActiveSection() {
   if (!cls) return;
 
   const state = appState[activeClassId];
-  const queryIsEmpty = state.searchQuery.length === 0;
 
   // Build interface for the active class inside the viewport container
   container.innerHTML = `
@@ -224,13 +223,6 @@ function renderActiveSection() {
           <input type="checkbox" class="toggle-input" id="num-${cls.id}" ${state.numbering ? 'checked' : ''}>
           Numbering
         </label>
-      </div>
-
-      <!-- Search Box -->
-      <div class="search-wrapper">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" id="search-${cls.id}" value="${state.searchQuery}" placeholder="Search student name...">
-        <button class="clear-search-btn" id="search-clear-${cls.id}" style="display: ${queryIsEmpty ? 'none' : 'flex'}" aria-label="Clear search">✕</button>
       </div>
 
       <!-- Class info bar -->
@@ -272,21 +264,15 @@ function renderStudentList(cls) {
   if (!listElement) return;
 
   const state = appState[classId];
-  const query = state.searchQuery.toLowerCase().trim();
-
-  // Filter students dynamically based on search box input
-  const filteredStudents = cls.students.filter(student => 
-    student.toLowerCase().includes(query)
-  );
 
   listElement.innerHTML = "";
 
-  if (filteredStudents.length === 0) {
-    listElement.innerHTML = `<li class="empty-list-message">No matching students found</li>`;
+  if (cls.students.length === 0) {
+    listElement.innerHTML = `<li class="empty-list-message">No students found</li>`;
     return;
   }
 
-  filteredStudents.forEach(studentName => {
+  cls.students.forEach((studentName, index) => {
     const isAbsent = state.absentStudents.has(studentName);
     const li = document.createElement("li");
     li.className = `student-item ${isAbsent ? 'is-absent' : ''}`;
@@ -296,8 +282,7 @@ function renderStudentList(cls) {
         <input type="checkbox" class="student-checkbox" aria-label="Mark ${studentName} absent" ${isAbsent ? 'checked' : ''}>
       </div>
       <div class="student-info-col">
-        <span class="student-name">${studentName}</span>
-        <span class="student-status-text">${isAbsent ? 'Absent' : 'Present'}</span>
+        <span class="student-name">${index + 1}. ${studentName}</span>
       </div>
     `;
 
@@ -363,31 +348,6 @@ function bindCardEvents(cls) {
   const numToggle = document.getElementById(`num-${classId}`);
   numToggle.addEventListener("change", (e) => {
     appState[classId].numbering = e.target.checked;
-  });
-
-  // Search input actions
-  const searchInput = document.getElementById(`search-${classId}`);
-  const clearSearchBtn = document.getElementById(`search-clear-${classId}`);
-
-  searchInput.addEventListener("input", (e) => {
-    const query = e.target.value;
-    appState[classId].searchQuery = query;
-
-    if (query.length > 0) {
-      clearSearchBtn.style.display = "flex";
-    } else {
-      clearSearchBtn.style.display = "none";
-    }
-
-    renderStudentList(cls);
-  });
-
-  clearSearchBtn.addEventListener("click", () => {
-    searchInput.value = "";
-    appState[classId].searchQuery = "";
-    clearSearchBtn.style.display = "none";
-    renderStudentList(cls);
-    searchInput.focus();
   });
 
   // Copy WhatsApp Message Action
